@@ -2,28 +2,30 @@
 // @name         谷歌AI结果侧栏显示
 // @author       izumi0004
 // @namespace    https://github.com/izumi0004
-// @version      0.0.1
+// @version      0.0.2
 // @description  将谷歌搜索结果中的AI概览移至侧栏显示
 // @match        https://www.google.com/search*
 // @match        https://www.google.com.*/search*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=google.com
 // @grant        none
+// @run-at       document-start
 // @license      MIT
 // ==/UserScript==
 
 (function () {
     'use strict';
 
-    function moveAIOverview() {
+    // Find the AI Overview block and header
+    function getAIOverview() {
         // Find the AI Overview Header
         const headers = Array.from(document.querySelectorAll('h1, h2'));
         const aiHeader = headers.find(h => {
             return ['AI overview', 'AI 概览'].includes(h.textContent);
         });
+        if (!aiHeader) {
+            return { header: null, block: null };
+        }
 
-        if (!aiHeader) return;
-
-        // Find the container block to move
         let aiBlock = null;
         let current = aiHeader;
 
@@ -42,18 +44,18 @@
             }
             current = parent;
         }
+        return { header: aiHeader, block: aiBlock };
+    }
 
-        if (!aiBlock) {
-            console.warn('AI Overview block not found for header:', aiHeader);
-            return;
-        }
-        if (aiBlock.getAttribute('data-ai-moved') === 'true') {
-            // Already moved
+    // Move the AI Overview block to the sidebar
+    function moveAIOverview() {
+        const { header: aiHeader, block: aiBlock } = getAIOverview();
+        if (!aiHeader || !aiBlock) {
             return;
         }
 
         // Reset display to fit the sidebar
-        current = aiHeader.parentElement;
+        let current = aiHeader.parentElement;
         do {
             if (window.getComputedStyle(current).display === 'grid') {
                 current.style.display = 'block';
@@ -78,12 +80,11 @@
 
         // Move the AI block to the sidebar
         rhs.insertBefore(aiBlock, rhs.firstChild);
-        aiBlock.setAttribute('data-ai-moved', 'true');
+        aiBlock.setAttribute('data-ai-moved', '');
+        aiBlock.style.display = '';
 
         // Inject style for the moved AI block
-        if (document.getElementById('ai-sidebar-styles')) return;
         const style = document.createElement('style');
-        style.id = 'ai-sidebar-styles';
         style.textContent = `
             /* Force all children to respect the container width */
             #rhs [data-ai-moved] * {
@@ -92,6 +93,10 @@
 
             /* Hide the #rhs-col container of source cards */
             #rhs [data-ai-moved] [data-container-id="rhs-col"] {
+                display: none !important;
+            }
+            /* Hide the source list at the bottom of the block */
+            #rhs [data-ai-moved] [data-sn-container][role="list"] {
                 display: none !important;
             }
             /* Hide "Dive deeper" and sharing buttons */
@@ -104,11 +109,16 @@
         `;
         document.head.appendChild(style);
 
+        // Auto expand the AI Overview block
         expandAIOverview();
+        const observer = new MutationObserver((mutations) => {
+            expandAIOverview();
+        });
+        observer.observe(aiBlock, { childList: true, subtree: true });
     }
 
+    // Expand AI overview block using the "Show More" button
     function expandAIOverview() {
-        // Expand AI overview block using the "Show More" button
         const buttons = Array.from(document.querySelectorAll('div[role="button"]'));
         const showMoreBtn = buttons.find(btn => {
             return ['Show more AI Overview', '显示更多 AI 概览'].includes(btn.getAttribute('aria-label'));
@@ -118,15 +128,17 @@
         }
     }
 
-    if (document.readyState === 'loading') {
-        window.addEventListener('DOMContentLoaded', moveAIOverview);
-    } else {
-        moveAIOverview();
-    }
+    // Move the block after loading
+    window.addEventListener('DOMContentLoaded', moveAIOverview);
 
     const observer = new MutationObserver((mutations) => {
-        expandAIOverview();
+        // Hide the block before moving to prevent flicker
+        const { header: aiHeader, block: aiBlock } = getAIOverview();
+        if (aiBlock) {
+            aiBlock.style.display = 'none';
+            observer.disconnect();
+        }
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
 
 })();
