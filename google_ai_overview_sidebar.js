@@ -2,7 +2,7 @@
 // @name         谷歌AI结果侧栏显示
 // @author       izumi0004
 // @namespace    https://github.com/izumi0004
-// @version      0.0.2
+// @version      0.0.3
 // @description  将谷歌搜索结果中的AI概览移至侧栏显示
 // @match        https://www.google.com/search*
 // @match        https://www.google.com.*/search*
@@ -117,14 +117,21 @@
         observer.observe(aiBlock, { childList: true, subtree: true });
     }
 
-    // Expand AI overview block using the "Show More" button
+    // Expand AI overview block
     function expandAIOverview() {
-        const buttons = Array.from(document.querySelectorAll('div[role="button"]'));
-        const showMoreBtn = buttons.find(btn => {
-            return ['Show more AI Overview', '显示更多 AI 概览'].includes(btn.getAttribute('aria-label'));
-        });
-        if (showMoreBtn) {
-            showMoreBtn.click();
+        const mxContent = document.getElementById('m-x-content');
+        if (mxContent) {
+            const parent = mxContent.parentElement;
+            // Manually expand the block
+            parent.style.minHeight = 'auto';
+            parent.style.maxHeight = 'none';
+
+            // Remove the show more button and trigger
+            for (const child of parent.children) {
+                if (child !== mxContent) {
+                    child.remove();
+                }
+            }
         }
     }
 
