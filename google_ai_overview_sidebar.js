@@ -2,7 +2,7 @@
 // @name         谷歌AI结果侧栏显示
 // @author       izumi0004
 // @namespace    https://github.com/izumi0004
-// @version      0.0.3
+// @version      0.0.4
 // @description  将谷歌搜索结果中的AI概览移至侧栏显示
 // @match        https://www.google.com/search*
 // @match        https://www.google.com.*/search*
@@ -18,10 +18,17 @@
     // Find the AI Overview block and header
     function getAIOverview() {
         // Find the AI Overview Header
-        const headers = Array.from(document.querySelectorAll('h1, h2'));
-        const aiHeader = headers.find(h => {
+        const headers = Array.from(document.querySelectorAll('[role="heading"]'));
+        let aiHeader = headers.find(h => {
             return ['AI overview', 'AI 概览'].includes(h.textContent);
         });
+        if (!aiHeader) {
+            const progressBars = Array.from(document.querySelectorAll('[role="progressbar"]'));
+            aiHeader = progressBars.find(pb => {
+                const ariaText = pb.getAttribute('aria-valuetext') || '';
+                return ['Generating', '正在生成'].includes(ariaText);
+            });
+        }
         if (!aiHeader) {
             return { header: null, block: null };
         }
